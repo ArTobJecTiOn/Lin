@@ -27,10 +27,11 @@ async function apiRequest(endpoint, options = {}) {
       headers
     });
 
-    if (response.status === 401) {
-      // Token expired
+    // Только если это авторизованный запрос (не login/register)
+    if (response.status === 401 && !options.skipAuth) {
+      // Token expired - разлогиниваем пользователя
       logout();
-      return null;
+      throw new Error('Сессия истекла. Войдите снова');
     }
 
     const data = await response.json();
@@ -418,15 +419,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       messageEl.textContent = 'Вход...';
       messageEl.style.color = '#b4b7c4';
       
-      await login(username, password);
+      const success = await login(username, password);
       
-      messageEl.textContent = 'Успешный вход!';
-      messageEl.style.color = '#4ade80';
-      
-      setTimeout(() => {
-        closeAuthModal();
-        showPage('home');
-      }, 500);
+      if (success) {
+        messageEl.textContent = 'Успешный вход!';
+        messageEl.style.color = '#4ade80';
+        
+        setTimeout(() => {
+          closeAuthModal();
+          showPage('home');
+        }, 500);
+      } else {
+        messageEl.textContent = 'Ошибка: Неверные данные для входа';
+        messageEl.style.color = '#ff2e4c';
+      }
     } catch (error) {
       messageEl.textContent = `Ошибка: ${error.message}`;
       messageEl.style.color = '#ff2e4c';
@@ -446,15 +452,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       messageEl.textContent = 'Регистрация...';
       messageEl.style.color = '#b4b7c4';
       
-      await register(username, email, password);
+      const success = await register(username, email, password);
       
-      messageEl.textContent = 'Регистрация успешна!';
-      messageEl.style.color = '#4ade80';
-      
-      setTimeout(() => {
-        closeAuthModal();
-        showPage('home');
-      }, 500);
+      if (success) {
+        messageEl.textContent = 'Регистрация успешна!';
+        messageEl.style.color = '#4ade80';
+        
+        setTimeout(() => {
+          closeAuthModal();
+          showPage('home');
+        }, 500);
+      } else {
+        messageEl.textContent = 'Ошибка: Не удалось зарегистрироваться';
+        messageEl.style.color = '#ff2e4c';
+      }
     } catch (error) {
       messageEl.textContent = `Ошибка: ${error.message}`;
       messageEl.style.color = '#ff2e4c';
