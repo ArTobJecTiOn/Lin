@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>LINAP.NET — VALORANT стратегии</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">LINAP<span>.NET</span></div>
+
+  <nav class="nav">
+    <a class="active" data-link="home">Главная</a>
+    <a data-link="strategies">Стратегии</a>
+    <a data-link="gallery">Галерея</a>
+    <a data-link="forum">Форум</a>
+  </nav>
+
+  <div class="header-right">
+    <button id="headerProfileBtn" class="profile-btn" aria-label="Профиль">
+      <span class="profile-name">Войти</span>
+      <div class="header-avatar"></div>
+    </button>
+  </div>
+</header>
+
+<!-- FILTER PANEL -->
+<section class="filter-panel">
+
+  <!-- LEFT TABS -->
+  <div class="filter-left">
+    <button class="filter-tab active" data-tab="agent">Агент</button>
+    <button class="filter-tab" data-tab="side">Сторона</button>
+  </div>
+
+  <!-- CONTENT -->
+
+<!-- AUTH / LOGIN / REGISTER MODAL -->
+<div id="authModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <button class="modal-close" id="authClose">✕</button>
+    <div class="auth-tabs">
+      <button id="tabLogin" class="auth-tab active">Войти</button>
+      <button id="tabRegister" class="auth-tab">Регистрация</button>
+    </div>
+
+    <form id="loginForm" class="auth-form">
+      <label>Email</label>
+      <input type="email" id="loginEmail" required />
+      <label>Пароль</label>
+      <input type="password" id="loginPassword" required />
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button type="submit">Войти</button>
+        <button type="button" id="openRegisterFromLogin">Зарегистрироваться</button>
+      </div>
+      <div id="loginMessage" class="auth-message"></div>
+    </form>
+
+    <form id="registerForm" class="auth-form" style="display:none;">
+      <label>Имя пользователя</label>
+      <input type="text" id="regUsername" required />
+      <label>Email</label>
+      <input type="email" id="regEmail" required />
+      <label>Пароль</label>
+      <input type="password" id="regPassword" required />
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button type="submit">Зарегистрироваться</button>
+        <button type="button" id="openLoginFromRegister">Уже есть аккаунт</button>
+      </div>
+      <div id="registerMessage" class="auth-message"></div>
+    </form>
+  </div>
+</div>
+  <div class="filter-content">
+
+    <!-- AGENT TAB -->
+    <div class="filter-group active" id="agent">
+      <button class="filter-chip active" data-filter="agent" data-value="all">Все Агенты</button>
+      <button class="filter-chip" data-filter="agent" data-value="Viper">Viper</button>
+      <button class="filter-chip" data-filter="agent" data-value="Brimstone">Brimstone</button>
+      <button class="filter-chip" data-filter="agent" data-value="Sova">Sova</button>
+      <button class="filter-chip" data-filter="agent" data-value="Killjoy">Killjoy</button>
+      <button class="filter-chip" data-filter="agent" data-value="Omen">Omen</button>
+    </div>
+
+    <!-- SIDE TAB -->
+    <div class="filter-group" id="side">
+      <button class="filter-chip active" data-filter="side" data-value="all">Все стороны</button>
+      <button class="filter-chip" data-filter="side" data-value="Attack">Атака</button>
+      <button class="filter-chip" data-filter="side" data-value="Defense">Защита</button>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="filter-footer">
+    <button id="resetFilters">Сбросить всё</button>
+    <button id="applyFilters">Сохранить изменения</button>
+  </div>
+
+</section>
+
+<!-- GRID -->
+<main id="homeGrid" class="grid">
+
+  <article class="card" data-agent="Viper" data-side="Attack" data-owner="Anonymous">
+    <div class="thumb"></div>
+    <span class="tag">АТАКА</span>
+    <h3>Haven — атака A plant</h3>
+    <p>Haven • Attack • Anonymous</p>
+    <div class="card-footer">
+      <span>126 просмотров • 6 дней назад</span>
+      <span>👍 1 👎 0</span>
+    </div>
+  </article>
+
+  <article class="card" data-agent="Brimstone" data-side="Attack" data-owner="GalaxyN7plus">
+    <div class="thumb"></div>
+    <span class="tag">ФРАГМЕНТ</span>
+    <h3>B Main to B site</h3>
+    <p>Bind • Attack • GalaxyN7plus</p>
+    <div class="card-footer">
+      <span>873 просмотров • 6 дней назад</span>
+      <span>👍 3 👎 0</span>
+    </div>
+  </article>
+
+  <article class="card" data-agent="Killjoy" data-side="Defense" data-owner="Anonymous">
+    <div class="thumb"></div>
+    <span class="tag">ОБОРОНА</span>
+    <h3>Haven — defense A default</h3>
+    <p>Haven • Defense • Anonymous</p>
+    <div class="card-footer">
+      <span>392 просмотров • 6 дней назад</span>
+      <span>👍 1 👎 0</span>
+    </div>
+  </article>
+
+  <article class="card" data-agent="Sova" data-side="Defense" data-owner="Anonymous">
+    <div class="thumb"></div>
+    <span class="tag">ОБОРОНА</span>
+    <h3>Haven — defense C plant</h3>
+    <p>Haven • Defense • Anonymous</p>
+    <div class="card-footer">
+      <span>223 просмотров • 6 дней назад</span>
+      <span>👍 1 👎 0</span>
+    </div>
+  </article>
+
+</main>
+
+<!-- PROFILE (user's videos) -->
+<section id="profileSection" style="display:none; padding: 16px 32px;">
+  <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+    <div>
+      <h2 id="profileName" style="color:#fff; font-family:Inter, sans-serif;">Профиль — Anonymous</h2>
+      <p style="color:#b4b7c4; margin-top:6px;">Видео, опубликованные пользователем</p>
+    </div>
+  </header>
+
+  <main id="profileGrid" class="grid"></main>
+</section>
+<!-- PROFILE EDIT MODAL/FORM (inline) -->
+<section id="profileEdit" style="display:none; padding: 16px 32px;">
+  <div class="profile-edit-card">
+    <div class="profile-left">
+      <div class="avatar-preview" id="avatarPreview"></div>
+      <input type="file" id="avatarInput" accept="image/*" />
+      <button id="changeAvatarBtn">Изменить аватар</button>
+    </div>
+
+    <div class="profile-right">
+      <label>Имя пользователя</label>
+      <input id="inputUsername" type="text" />
+
+      <label>Электронная почта</label>
+      <input id="inputEmail" type="email" />
+
+      <label>Пароль</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input id="inputPassword" type="password" />
+        <button id="toggleShowPassword">Показать</button>
+      </div>
+
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button id="saveProfile">Сохранить</button>
+        <button id="cancelEdit">Отмена</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
