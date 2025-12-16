@@ -1,0 +1,10 @@
+//zapystit//
+poetry run uvicorn app.main:app --reload
+
+
+
+//GIT//
+git add
+git commit -m "йоу"
+git push
+

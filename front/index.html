@@ -21,10 +21,23 @@
   </nav>
 
   <div class="header-right">
-    <button id="headerProfileBtn" class="profile-btn" aria-label="Профиль">
-      <span class="profile-name">Войти</span>
-      <div class="header-avatar"></div>
-    </button>
+    <div class="profile-menu-container">
+      <button id="headerProfileBtn" class="profile-btn" aria-label="Профиль">
+        <span class="profile-name">Войти</span>
+        <div class="header-avatar"></div>
+      </button>
+      <div id="profileDropdown" class="profile-dropdown" style="display: none;">
+        <button id="profileMenuBtn" class="profile-dropdown-item">
+          <span>👤</span> Мой профиль
+        </button>
+        <button id="settingsBtn" class="profile-dropdown-item">
+          <span>⚙️</span> Настройки
+        </button>
+        <button id="logoutBtn" class="profile-dropdown-item logout">
+          <span>🚪</span> Выйти
+        </button>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -39,6 +52,49 @@
 
   <!-- CONTENT -->
 
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal" style="display:none;">
+  <div class="modal-content" style="width: 500px;">
+    <button class="modal-close" id="settingsClose">✕</button>
+    <h2 style="margin: 0 0 20px 0; color: #fff;">Настройки профиля</h2>
+    
+    <form id="settingsForm" class="auth-form">
+      <!-- Display Name -->
+      <label>Отображаемое имя</label>
+      <input type="text" id="settingsDisplayName" placeholder="Как вас зовут?" />
+      
+      <!-- Avatar -->
+      <label style="margin-top: 16px;">Аватар</label>
+      <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+        <div id="settingsAvatarPreview" class="avatar-preview-small"></div>
+        <input type="file" id="settingsAvatarInput" accept="image/*" style="display: none;" />
+        <button type="button" id="settingsAvatarBtn" class="btn-secondary">Выбрать файл</button>
+      </div>
+      
+      <!-- Password Section -->
+      <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #22252b;">
+        <h3 style="margin: 0 0 12px 0; color: #fff; font-size: 14px;">Изменить пароль</h3>
+        
+        <label>Текущий пароль</label>
+        <input type="password" id="settingsCurrentPassword" placeholder="Введите текущий пароль" />
+        
+        <label style="margin-top: 12px;">Новый пароль</label>
+        <input type="password" id="settingsNewPassword" placeholder="Новый пароль" />
+        
+        <label style="margin-top: 12px;">Подтверждение пароля</label>
+        <input type="password" id="settingsConfirmPassword" placeholder="Подтверждение пароля" />
+      </div>
+      
+      <div id="settingsMessage" class="auth-message"></div>
+      
+      <div style="margin-top: 20px; display: flex; gap: 8px;">
+        <button type="submit" class="btn-primary">Сохранить</button>
+        <button type="button" id="settingsCancelBtn" class="btn-secondary">Отмена</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- AUTH / LOGIN / REGISTER MODAL -->
 <div id="authModal" class="modal" style="display:none;">
   <div class="modal-content">
@@ -49,8 +105,8 @@
     </div>
 
     <form id="loginForm" class="auth-form">
-      <label>Email</label>
-      <input type="email" id="loginEmail" required />
+      <label>Email или имя пользователя</label>
+      <input type="text" id="loginUsername" required />
       <label>Пароль</label>
       <input type="password" id="loginPassword" required />
       <div style="margin-top:12px; display:flex; gap:8px;">
@@ -160,10 +216,63 @@
       <h2 id="profileName" style="color:#fff; font-family:Inter, sans-serif;">Профиль — Anonymous</h2>
       <p style="color:#b4b7c4; margin-top:6px;">Видео, опубликованные пользователем</p>
     </div>
+    <button id="uploadVideoBtn" class="btn-primary" style="padding: 10px 20px; height: fit-content;">
+      <span></span> Загрузить видео
+    </button>
   </header>
 
   <main id="profileGrid" class="grid"></main>
 </section>
+
+<!-- VIDEO UPLOAD MODAL -->
+<div id="uploadVideoModal" class="modal" style="display:none;">
+  <div class="modal-content" style="width: 500px;">
+    <button class="modal-close" id="uploadVideoClose">✕</button>
+    <h2 style="margin: 0 0 20px 0; color: #fff;">Загрузить видео</h2>
+    
+    <form id="uploadVideoForm" class="auth-form">
+      <label>Название видео</label>
+      <input type="text" id="uploadTitle" placeholder="Введите название видео" required />
+      
+      <label style="margin-top: 16px;">Описание</label>
+      <textarea id="uploadDescription" placeholder="Описание видео (опционально)" style="width: 100%; min-height: 80px; padding: 8px; border-radius: 8px; border: 1px solid #22252b; background: #161821; color: #fff; font-family: Inter, sans-serif; margin-top: 6px;"></textarea>
+      
+      <label style="margin-top: 16px;">Агент</label>
+      <select id="uploadAgent" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #22252b; background: #161821; color: #fff; font-family: Inter, sans-serif; margin-top: 6px;" required>
+        <option value="">Выберите агента</option>
+        <option value="Viper">Viper</option>
+        <option value="Brimstone">Brimstone</option>
+        <option value="Sova">Sova</option>
+        <option value="Killjoy">Killjoy</option>
+        <option value="Omen">Omen</option>
+      </select>
+      
+      <label style="margin-top: 16px;">Сторона</label>
+      <select id="uploadSide" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #22252b; background: #161821; color: #fff; font-family: Inter, sans-serif; margin-top: 6px;" required>
+        <option value="">Выберите сторону</option>
+        <option value="Attack">Атака</option>
+        <option value="Defense">Защита</option>
+      </select>
+      
+      <label style="margin-top: 16px;">Видеофайл (MP4)</label>
+      <input type="file" id="uploadVideoFile" accept="video/mp4" required style="margin-top: 6px; cursor: pointer;" />
+      
+      <div id="uploadProgress" style="margin-top: 16px; display: none;">
+        <div style="background: #22252b; border-radius: 8px; height: 8px; overflow: hidden;">
+          <div id="uploadProgressBar" style="background: #ff2e4c; height: 100%; width: 0%; transition: width 0.3s;"></div>
+        </div>
+        <p id="uploadProgressText" style="margin-top: 8px; color: #b4b7c4; font-size: 12px;">Загрузка...</p>
+      </div>
+      
+      <div id="uploadMessage" class="auth-message"></div>
+      
+      <div style="margin-top: 20px; display: flex; gap: 8px;">
+        <button type="submit" class="btn-primary">Загрузить</button>
+        <button type="button" id="uploadCancelBtn" class="btn-secondary">Отмена</button>
+      </div>
+    </form>
+  </div>
+</div>
 <!-- PROFILE EDIT MODAL/FORM (inline) -->
 <section id="profileEdit" style="display:none; padding: 16px 32px;">
   <div class="profile-edit-card">
@@ -193,6 +302,43 @@
     </div>
   </div>
 </section>
+
+<!-- VIDEO PLAYER MODAL -->
+<div id="videoPlayerModal" class="modal" style="display:none;">
+  <div class="modal-content" style="width: 90%; max-width: 900px; max-height: 90vh; overflow: auto;">
+    <button class="modal-close" id="videoPlayerClose">✕</button>
+    
+    <div style="width: 100%; background: #000; border-radius: 8px; overflow: hidden;">
+      <video id="videoPlayer" style="width: 100%; display: block;" controls>
+        <source src="" type="video/mp4">
+        Ваш браузер не поддерживает видео
+      </video>
+    </div>
+    
+    <div style="margin-top: 20px;">
+      <h3 id="videoPlayerTitle" style="margin: 0 0 8px 0; color: #fff;">Название видео</h3>
+      <p id="videoPlayerDescription" style="margin: 0 0 12px 0; color: #b4b7c4; font-size: 14px;">Описание видео</p>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #22252b;">
+        <div style="display: flex; gap: 16px;">
+          <div style="text-align: center;">
+            <div style="color: #b4b7c4; font-size: 12px;">Просмотры</div>
+            <div id="videoPlayerViews" style="color: #fff; font-size: 16px; font-weight: 600;">0</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="color: #b4b7c4; font-size: 12px;">Лайки</div>
+            <div id="videoPlayerLikes" style="color: #fff; font-size: 16px; font-weight: 600;">0</div>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px;">
+          <button id="videoLikeBtn" class="btn-primary" style="padding: 8px 16px;">👍 Нравится</button>
+          <button id="videoDislikeBtn" class="btn-secondary" style="padding: 8px 16px;">👎 Не нравится</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/static/script.js"></script>
 </body>

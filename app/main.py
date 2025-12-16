@@ -54,6 +54,11 @@ app.include_router(api_router)
 FRONT_DIR = Path(__file__).parent.parent / "front"
 app.mount("/static", StaticFiles(directory=str(FRONT_DIR)), name="static")
 
+# Mount uploads directory
+UPLOADS_DIR = Path(__file__).parent.parent / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+
 # Serve index.html at root (must be last to not override other routes)
 @app.get("/")
 async def serve_frontend():

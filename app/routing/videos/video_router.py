@@ -1,11 +1,38 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Header, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+import aiofiles
+import os
+from pathlib import Path
+from typing import Optional
 
 from app.core.database.database import get_db
+from app.core.security import decode_access_token
 from app.service.video_service import VideoService
 
 router = APIRouter(prefix="/videos")
+
+
+def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
+    """Получить текущего пользователя из токена"""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = authorization.split(" ")[1]
+    token_data = decode_access_token(token)
+
+    if not token_data:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return token_data
 
 
 @router.get("/")
@@ -234,6 +261,76 @@ async def dislike_video(
     except HTTPException as e:
         raise e
     except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/upload")
+async def upload_video(
+    title: str = Form(...),
+    file: UploadFile = File(...),
+    description: str | None = Form(None),
+    agent: str | None = Form(None),
+    side: str | None = Form(None),
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Загрузить видео файл"""
+    video_service = VideoService(session)
+    try:
+        print(f"[VIDEO UPLOAD] Received upload request: title={title}, agent={agent}, side={side}, user={current_user}")
+        
+        # Get owner_id from current user (TokenData object)
+        owner_id = UUID(current_user.user_id)
+        
+        # Проверяем формат файла
+        if file.content_type not in ["video/mp4", "video/quicktime", "application/octet-stream"]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only MP4 video files are allowed. Received: {file.content_type}"
+            )
+        
+        # Создаем директорию для видео если её нет
+        upload_dir = "uploads/videos"
+        Path(upload_dir).mkdir(parents=True, exist_ok=True)
+        
+        # Генерируем имя файла
+        file_extension = file.filename.split(".")[-1] if file.filename else "mp4"
+        unique_id = os.urandom(8).hex()
+        filename = f"{title.replace(' ', '_')}_{unique_id}.{file_extension}"
+        filepath = os.path.join(upload_dir, filename)
+        
+        # Сохраняем файл
+        async with aiofiles.open(filepath, "wb") as f:
+            contents = await file.read()
+            await f.write(contents)
+        
+        # Создаем видео в БД
+        video_url = f"/uploads/videos/{filename}"
+        video = await video_service.create_video(
+            owner_id=owner_id,
+            title=title,
+            video_url=video_url,
+            description=description,
+            agent=agent,
+            side=side
+        )
+        
+        print(f"[VIDEO UPLOAD] Video created: {video}")
+        
+        return {
+            "message": "Video uploaded successfully",
+            "video": video,
+            "video_url": video_url
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"[VIDEO UPLOAD] Error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

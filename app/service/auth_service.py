@@ -79,18 +79,20 @@ class AuthService:
         print(f"[REGISTER] Registration successful for user: {username}")
         return user
 
-    async def authenticate(self, username: str, password: str) -> User:
-        """Аутентифицировать пользователя"""
-        print(f"[AUTH] Attempting to authenticate user: {username}")
+    async def authenticate(self, username_or_email: str, password: str) -> User:
+        """Аутентифицировать пользователя по username или email"""
+        print(f"[AUTH] Attempting to authenticate user: {username_or_email}")
         
-        # Находим пользователя
+        # Находим пользователя по username или email
         result = await self.session.execute(
-            select(User).where(User.username == username)
+            select(User).where(
+                (User.username == username_or_email) | (User.email == username_or_email)
+            )
         )
         user = result.scalars().first()
 
         if not user:
-            print(f"[AUTH] User not found: {username}")
+            print(f"[AUTH] User not found: {username_or_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
@@ -114,7 +116,7 @@ class AuthService:
         auth_account = auth_result.scalars().first()
 
         if not auth_account or not auth_account.password_hash:
-            print(f"[AUTH] No auth account found for user: {username}")
+            print(f"[AUTH] No auth account found for user: {username_or_email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials"
@@ -132,7 +134,7 @@ class AuthService:
                 detail="Invalid credentials"
             )
 
-        print(f"[AUTH] Authentication successful for user: {username}")
+        print(f"[AUTH] Authentication successful for user: {username_or_email}")
         return user
 
     async def change_password(
