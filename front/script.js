@@ -512,45 +512,73 @@ async function recordVideoView(video) {
 }
 
 async function toggleLike(video) {
-  console.log('[LIKE] Current user:', currentUser);
+  console.log('[LIKE] Текущий пользователь:', currentUser);
   if (!currentUser) {
-    console.log('[LIKE] User not logged in, opening auth modal');
+    console.log('[LIKE] Пользователь не авторизован, открываем модаль входа');
     openAuthModal();
     return;
   }
   
   try {
-    console.log('[LIKE] Sending like request for video:', video.id);
+    console.log('[LIKE] Отправляем запрос лайка для видео:', video.id);
     const response = await apiRequest(`/videos/${video.id}/like`, { method: 'POST' });
-    console.log('[LIKE] Response:', response);
+    console.log('[LIKE] Ответ:', response);
+    
+    // Обновляем счетчики
     video.likes = response.likes || 0;
     video.dislikes = response.dislikes || video.dislikes || 0;
+    
+    // Определяем текст действия
+    const actionText = {
+      'added': 'добавлен',
+      'removed': 'удален',
+      'switched': 'переключен с дизлайка'
+    }[response.action] || response.action;
+    
+    // Обновляем отображение
     document.getElementById('videoPlayerLikes').textContent = `👍 ${video.likes} | 👎 ${video.dislikes}`;
-    console.log('Like toggled successfully');
+    console.log(`[LIKE] Лайк ${actionText} успешно`);
+    
+    // Показываем уведомление
+    showNotification(`Лайк ${actionText}!`);
   } catch (error) {
-    console.error('Failed to toggle like:', error);
+    console.error('Ошибка при отправке лайка:', error);
     alert('Ошибка при отправке лайка: ' + error.message);
   }
 }
 
 async function toggleDislike(video) {
-  console.log('[DISLIKE] Current user:', currentUser);
+  console.log('[DISLIKE] Текущий пользователь:', currentUser);
   if (!currentUser) {
-    console.log('[DISLIKE] User not logged in, opening auth modal');
+    console.log('[DISLIKE] Пользователь не авторизован, открываем модаль входа');
     openAuthModal();
     return;
   }
   
   try {
-    console.log('[DISLIKE] Sending dislike request for video:', video.id);
+    console.log('[DISLIKE] Отправляем запрос дизлайка для видео:', video.id);
     const response = await apiRequest(`/videos/${video.id}/dislike`, { method: 'POST' });
-    console.log('[DISLIKE] Response:', response);
+    console.log('[DISLIKE] Ответ:', response);
+    
+    // Обновляем счетчики
     video.dislikes = response.dislikes || 0;
     video.likes = response.likes || video.likes || 0;
+    
+    // Определяем текст действия
+    const actionText = {
+      'added': 'добавлен',
+      'removed': 'удален',
+      'switched': 'переключен с лайка'
+    }[response.action] || response.action;
+    
+    // Обновляем отображение
     document.getElementById('videoPlayerLikes').textContent = `👍 ${video.likes} | 👎 ${video.dislikes}`;
-    console.log('Dislike toggled successfully');
+    console.log(`[DISLIKE] Дизлайк ${actionText} успешно`);
+    
+    // Показываем уведомление
+    showNotification(`Дизлайк ${actionText}!`);
   } catch (error) {
-    console.error('Failed to toggle dislike:', error);
+    console.error('Ошибка при отправке дизлайка:', error);
     alert('Ошибка при отправке дизлайка: ' + error.message);
   }
 }
@@ -1171,3 +1199,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('[VIDEO UPLOAD] Upload form not found!');
   }
 });
+
+// Функция для показа уведомлений
+function showNotification(message) {
+  const notification = document.createElement('div');
+  notification.textContent = message;
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #4CAF50;
+    color: white;
+    padding: 16px 24px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10000;
+    font-size: 14px;
+    animation: slideIn 0.3s ease-in-out;
+  `;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.3s ease-in-out';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// Добавляем CSS анимации для уведомлений
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes slideIn {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideOut {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+  }
+`;
+document.head.appendChild(style);
+

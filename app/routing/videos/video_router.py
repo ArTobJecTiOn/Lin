@@ -241,10 +241,16 @@ async def like_video(
     print(f"[LIKE] Получен запрос лайка для видео {video_id} от пользователя {current_user}")
     video_service = VideoService(session)
     try:
-        video = await video_service.like_video(video_id)
-        print(f"[LIKE] Видео после лайка: likes={video.likes}, dislikes={video.dislikes}")
+        video, action = await video_service.toggle_like(UUID(current_user.user_id), video_id)
+        action_text = {
+            "added": "добавлен",
+            "removed": "удален",
+            "switched": "переключен с дизлайка"
+        }.get(action, action)
+        print(f"[LIKE] Лайк {action_text}. likes={video.likes}, dislikes={video.dislikes}")
         return {
-            "message": "Video liked successfully",
+            "message": f"Лайк {action_text}",
+            "action": action,
             "likes": video.likes,
             "dislikes": video.dislikes
         }
@@ -269,10 +275,16 @@ async def dislike_video(
     print(f"[DISLIKE] Получен запрос дизлайка для видео {video_id} от пользователя {current_user}")
     video_service = VideoService(session)
     try:
-        video = await video_service.dislike_video(video_id)
-        print(f"[DISLIKE] Видео после дизлайка: likes={video.likes}, dislikes={video.dislikes}")
+        video, action = await video_service.toggle_dislike(UUID(current_user.user_id), video_id)
+        action_text = {
+            "added": "добавлен",
+            "removed": "удален",
+            "switched": "переключен с лайка"
+        }.get(action, action)
+        print(f"[DISLIKE] Дизлайк {action_text}. likes={video.likes}, dislikes={video.dislikes}")
         return {
-            "message": "Video disliked successfully",
+            "message": f"Дизлайк {action_text}",
+            "action": action,
             "likes": video.likes,
             "dislikes": video.dislikes
         }

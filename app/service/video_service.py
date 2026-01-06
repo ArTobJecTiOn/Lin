@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 
 from app.models.video import Video
+from app.models.video_reaction import VideoReaction
 
 
 class VideoService:
@@ -148,6 +149,98 @@ class VideoService:
         await self.session.commit()
         await self.session.refresh(video)
         return video
+
+    async def toggle_like(self, user_id: uuid.UUID, video_id: uuid.UUID) -> tuple[Video, str]:
+        """Переключить лайк (добавить или удалить)"""
+        video = await self.get_video_by_id(video_id)
+        if not video:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video not found"
+            )
+
+        # Проверяем, есть ли уже реакция этого пользователя
+        result = await self.session.execute(
+            select(VideoReaction).where(
+                (VideoReaction.user_id == user_id) & (VideoReaction.video_id == video_id)
+            )
+        )
+        existing_reaction = result.scalars().first()
+
+        if existing_reaction:
+            # Если уже есть лайк - удаляем его
+            if existing_reaction.reaction_type == "like":
+                await self.session.delete(existing_reaction)
+                video.likes -= 1
+                await self.session.commit()
+                await self.session.refresh(video)
+                return video, "removed"
+            # Если был дизлайк - меняем на лайк
+            else:
+                existing_reaction.reaction_type = "like"
+                video.dislikes -= 1
+                video.likes += 1
+                await self.session.commit()
+                await self.session.refresh(video)
+                return video, "switched"
+        else:
+            # Нет реакции - добавляем лайк
+            reaction = VideoReaction(
+                user_id=user_id,
+                video_id=video_id,
+                reaction_type="like"
+            )
+            self.session.add(reaction)
+            video.likes += 1
+            await self.session.commit()
+            await self.session.refresh(video)
+            return video, "added"
+
+    async def toggle_dislike(self, user_id: uuid.UUID, video_id: uuid.UUID) -> tuple[Video, str]:
+        """Переключить дизлайк (добавить или удалить)"""
+        video = await self.get_video_by_id(video_id)
+        if not video:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Video not found"
+            )
+
+        # Проверяем, есть ли уже реакция этого пользователя
+        result = await self.session.execute(
+            select(VideoReaction).where(
+                (VideoReaction.user_id == user_id) & (VideoReaction.video_id == video_id)
+            )
+        )
+        existing_reaction = result.scalars().first()
+
+        if existing_reaction:
+            # Если уже есть дизлайк - удаляем его
+            if existing_reaction.reaction_type == "dislike":
+                await self.session.delete(existing_reaction)
+                video.dislikes -= 1
+                await self.session.commit()
+                await self.session.refresh(video)
+                return video, "removed"
+            # Если был лайк - меняем на дизлайк
+            else:
+                existing_reaction.reaction_type = "dislike"
+                video.likes -= 1
+                video.dislikes += 1
+                await self.session.commit()
+                await self.session.refresh(video)
+                return video, "switched"
+        else:
+            # Нет реакции - добавляем дизлайк
+            reaction = VideoReaction(
+                user_id=user_id,
+                video_id=video_id,
+                reaction_type="dislike"
+            )
+            self.session.add(reaction)
+            video.dislikes += 1
+            await self.session.commit()
+            await self.session.refresh(video)
+            return video, "added"
 
     async def delete_video(self, video_id: uuid.UUID) -> bool:
         """Удалить видео"""
