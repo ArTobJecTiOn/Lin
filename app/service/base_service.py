@@ -1,4 +1,4 @@
-from typing import TypeVar, Generic, List, Optional
+from typing import TypeVar, Generic, List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -12,7 +12,7 @@ class BaseService(Generic[T]):
         self.session = session
         self.model = model
 
-    async def get_by_id(self, id: any) -> Optional[T]:
+    async def get_by_id(self, id: Any) -> Optional[T]:
         """Получить запись по ID"""
         return await self.session.get(self.model, id)
 
@@ -20,7 +20,7 @@ class BaseService(Generic[T]):
         """Получить все записи с пагинацией"""
         query = select(self.model).offset(skip).limit(limit)
         result = await self.session.execute(query)
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def create(self, obj: T) -> T:
         """Создать новую запись"""
@@ -29,7 +29,7 @@ class BaseService(Generic[T]):
         await self.session.refresh(obj)
         return obj
 
-    async def update(self, id: any, obj_in: dict) -> Optional[T]:
+    async def update(self, id: Any, obj_in: dict) -> Optional[T]:
         """Обновить запись"""
         db_obj = await self.get_by_id(id)
         if db_obj:
@@ -40,7 +40,7 @@ class BaseService(Generic[T]):
             await self.session.refresh(db_obj)
         return db_obj
 
-    async def delete(self, id: any) -> bool:
+    async def delete(self, id: Any) -> bool:
         """Удалить запись"""
         db_obj = await self.get_by_id(id)
         if db_obj:

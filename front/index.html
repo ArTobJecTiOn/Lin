@@ -336,6 +336,27 @@
           <button id="videoDislikeBtn" class="btn-secondary" style="padding: 8px 16px;">👎 Не нравится</button>
         </div>
       </div>
+
+      <!-- Comments Section -->
+      <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #22252b;">
+        <h4 style="margin: 0 0 16px 0; color: #fff;">💬 Комментарии</h4>
+        
+        <!-- Comment Input -->
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <input 
+            id="commentInput" 
+            type="text" 
+            placeholder="Ваш комментарий..." 
+            style="flex: 1; padding: 10px 12px; background: #22252b; color: #fff; border: 1px solid #2a2d34; border-radius: 4px; font-size: 14px; outline: none;"
+          >
+          <button id="submitCommentBtn" class="btn-primary" style="padding: 10px 16px;">Отправить</button>
+        </div>
+        
+        <!-- Comments List -->
+        <div id="commentsList" style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto;">
+          <p style="color: #b4b7c4; text-align: center;">Загрузка комментариев...</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>

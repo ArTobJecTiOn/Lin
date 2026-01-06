@@ -232,16 +232,25 @@ async def update_video(
 @router.post("/{video_id}/like")
 async def like_video(
     video_id: UUID,
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Добавить лайк к видео"""
+    print(f"[LIKE] Received like request for video {video_id} from user {current_user}")
     video_service = VideoService(session)
     try:
         video = await video_service.like_video(video_id)
-        return {"message": "Video liked successfully", "likes": video.likes}
+        print(f"[LIKE] Video after like: likes={video.likes}, dislikes={video.dislikes}")
+        return {
+            "message": "Video liked successfully",
+            "likes": video.likes,
+            "dislikes": video.dislikes
+        }
     except HTTPException as e:
+        print(f"[LIKE] HTTPException: {e}")
         raise e
     except Exception as e:
+        print(f"[LIKE] Exception: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -251,16 +260,25 @@ async def like_video(
 @router.post("/{video_id}/dislike")
 async def dislike_video(
     video_id: UUID,
-    session: AsyncSession = Depends(get_db)
+    session: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     """Добавить дизлайк к видео"""
+    print(f"[DISLIKE] Received dislike request for video {video_id} from user {current_user}")
     video_service = VideoService(session)
     try:
         video = await video_service.dislike_video(video_id)
-        return {"message": "Video disliked successfully", "dislikes": video.dislikes}
+        print(f"[DISLIKE] Video after dislike: likes={video.likes}, dislikes={video.dislikes}")
+        return {
+            "message": "Video disliked successfully",
+            "likes": video.likes,
+            "dislikes": video.dislikes
+        }
     except HTTPException as e:
+        print(f"[DISLIKE] HTTPException: {e}")
         raise e
     except Exception as e:
+        print(f"[DISLIKE] Exception: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)

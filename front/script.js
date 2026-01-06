@@ -21,12 +21,17 @@ async function apiRequest(endpoint, options = {}) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
 
+  console.log(`[API] ${options.method || 'GET'} ${url}`, options.body ? JSON.parse(options.body) : '');
+
   try {
     const response = await fetch(url, {
       ...options,
       headers
     });
 
+    const data = await response.json();
+    console.log(`[API] Response (${response.status}):`, data);
+    
     // Только если это авторизованный запрос (не login/register)
     if (response.status === 401 && !options.skipAuth) {
       // Token expired - разлогиниваем пользователя
@@ -34,15 +39,13 @@ async function apiRequest(endpoint, options = {}) {
       throw new Error('Сессия истекла. Войдите снова');
     }
 
-    const data = await response.json();
-    
     if (!response.ok) {
       throw new Error(data.detail || 'Request failed');
     }
 
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('[API] Error:', error);
     throw error;
   }
 }
@@ -461,6 +464,23 @@ function openVideoPlayer(video) {
   // Wire close button
   closeBtn.onclick = closeVideoPlayer;
   
+  // Wire like button
+  document.getElementById('videoLikeBtn').onclick = () => toggleLike(video);
+  
+  // Wire dislike button
+  document.getElementById('videoDislikeBtn').onclick = () => toggleDislike(video);
+  
+  // Load comments
+  loadComments(video.id);
+  
+  // Wire comment submit button
+  document.getElementById('submitCommentBtn').onclick = () => submitComment(video.id);
+  
+  // Allow Enter key to submit comment
+  document.getElementById('commentInput').onkeypress = (e) => {
+    if (e.key === 'Enter') submitComment(video.id);
+  };
+  
   document.getElementById('videoPlayerModal').style.display = 'flex';
   videoPlayer.play();
 }
@@ -469,6 +489,140 @@ function closeVideoPlayer() {
   const videoPlayer = document.getElementById('videoPlayer');
   videoPlayer.pause();
   document.getElementById('videoPlayerModal').style.display = 'none';
+  document.getElementById('commentInput').value = '';
+}
+
+async function toggleLike(video) {
+  console.log('[LIKE] Current user:', currentUser);
+  if (!currentUser) {
+    console.log('[LIKE] User not logged in, opening auth modal');
+    openAuthModal();
+    return;
+  }
+  
+  try {
+    console.log('[LIKE] Sending like request for video:', video.id);
+    const response = await apiRequest(`/videos/${video.id}/like`, { method: 'POST' });
+    console.log('[LIKE] Response:', response);
+    video.likes = response.likes || 0;
+    video.dislikes = response.dislikes || video.dislikes || 0;
+    document.getElementById('videoPlayerLikes').textContent = `👍 ${video.likes} | 👎 ${video.dislikes}`;
+    console.log('Like toggled successfully');
+  } catch (error) {
+    console.error('Failed to toggle like:', error);
+    alert('Ошибка при отправке лайка: ' + error.message);
+  }
+}
+
+async function toggleDislike(video) {
+  console.log('[DISLIKE] Current user:', currentUser);
+  if (!currentUser) {
+    console.log('[DISLIKE] User not logged in, opening auth modal');
+    openAuthModal();
+    return;
+  }
+  
+  try {
+    console.log('[DISLIKE] Sending dislike request for video:', video.id);
+    const response = await apiRequest(`/videos/${video.id}/dislike`, { method: 'POST' });
+    console.log('[DISLIKE] Response:', response);
+    video.dislikes = response.dislikes || 0;
+    video.likes = response.likes || video.likes || 0;
+    document.getElementById('videoPlayerLikes').textContent = `👍 ${video.likes} | 👎 ${video.dislikes}`;
+    console.log('Dislike toggled successfully');
+  } catch (error) {
+    console.error('Failed to toggle dislike:', error);
+    alert('Ошибка при отправке дизлайка: ' + error.message);
+  }
+}
+
+async function loadComments(videoId) {
+  console.log('[COMMENTS] Loading comments for video:', videoId);
+  try {
+    const comments = await apiRequest(`/comments/video/${videoId}`);
+    console.log('[COMMENTS] Loaded comments:', comments);
+    const commentsList = document.getElementById('commentsList');
+    commentsList.innerHTML = '';
+    
+    if (!comments || comments.length === 0) {
+      commentsList.innerHTML = '<p style="color: #b4b7c4; text-align: center; padding: 16px;">Комментариев еще нет</p>';
+      return;
+    }
+    
+    comments.forEach(comment => {
+      const commentEl = document.createElement('div');
+      commentEl.style.cssText = 'padding: 12px; background: #22252b; border-radius: 4px; border-left: 3px solid #ff2e4c;';
+      console.log('[COMMENTS] Rendering comment:', comment, 'currentUser:', currentUser, 'author_id:', comment.author_id, 'user_id:', comment.user_id);
+      
+      // Check if current user is the author
+      const isOwner = currentUser && (currentUser.id === comment.user_id || currentUser.id === comment.author_id);
+      console.log('[COMMENTS] Is owner?', isOwner);
+      
+      commentEl.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+          <div>
+            <div style="color: #fff; font-weight: 600; font-size: 14px;">${comment.author?.username || 'Anonymous'}</div>
+            <div style="color: #b4b7c4; font-size: 13px; margin-top: 4px;">${comment.content}</div>
+          </div>
+          ${isOwner ? `
+            <button onclick="deleteComment('${comment.id}')" style="background: none; border: none; color: #ff2e4c; cursor: pointer; padding: 4px; font-size: 16px;">✕</button>
+          ` : ''}
+        </div>
+      `;
+      commentsList.appendChild(commentEl);
+    });
+  } catch (error) {
+    console.error('Failed to load comments:', error);
+    document.getElementById('commentsList').innerHTML = '<p style="color: #ff6b6b; text-align: center;">Ошибка загрузки комментариев: ' + error.message + '</p>';
+  }
+}
+
+async function submitComment(videoId) {
+  console.log('[COMMENT] Current user:', currentUser);
+  if (!currentUser) {
+    console.log('[COMMENT] User not logged in, opening auth modal');
+    openAuthModal();
+    return;
+  }
+  
+  const input = document.getElementById('commentInput');
+  const content = input.value.trim();
+  
+  if (!content) {
+    alert('Введите комментарий');
+    return;
+  }
+  
+  try {
+    console.log('[COMMENT] Submitting comment for video:', videoId);
+    const response = await apiRequest('/comments/', {
+      method: 'POST',
+      body: JSON.stringify({
+        video_id: videoId,
+        content: content
+      })
+    });
+    console.log('[COMMENT] Comment submitted successfully:', response);
+    
+    input.value = '';
+    await loadComments(videoId);
+    console.log('Comment posted');
+  } catch (error) {
+    console.error('Failed to post comment:', error);
+    alert('Ошибка при отправке комментария: ' + error.message);
+  }
+}
+
+async function deleteComment(commentId) {
+  if (!confirm('Удалить комментарий?')) return;
+  
+  try {
+    await apiRequest(`/comments/${commentId}`, { method: 'DELETE' });
+    await loadComments(currentVideoId);
+    console.log('Comment deleted');
+  } catch (error) {
+    console.error('Failed to delete comment:', error);
+  }
 }
 
 // Video upload functions

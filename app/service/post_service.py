@@ -2,7 +2,7 @@ from typing import Optional, List
 import uuid
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 
 from app.models.post import Post
@@ -20,42 +20,42 @@ class PostService:
         result = await self.session.execute(
             select(Post)
             .where(Post.id == post_id)
-            .options(selectinload(Post.owner))
+            .options(joinedload(Post.owner))
         )
-        return result.scalars().first()
+        return result.unique().scalars().first()
 
     async def get_post_by_slug(self, slug: str) -> Optional[Post]:
         """Получить пост по slug"""
         result = await self.session.execute(
             select(Post)
             .where(Post.slug == slug)
-            .options(selectinload(Post.owner))
+            .options(joinedload(Post.owner))
         )
-        return result.scalars().first()
+        return result.unique().scalars().first()
 
     async def get_user_posts(self, user_id: uuid.UUID, skip: int = 0, limit: int = 20) -> List[Post]:
         """Получить посты пользователя"""
         result = await self.session.execute(
             select(Post)
             .where(Post.owner_id == user_id)
-            .options(selectinload(Post.owner))
+            .options(joinedload(Post.owner))
             .order_by(desc(Post.created_at))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def get_published_posts(self, skip: int = 0, limit: int = 20) -> List[Post]:
         """Получить опубликованные посты"""
         result = await self.session.execute(
             select(Post)
             .where(Post.published == True)
-            .options(selectinload(Post.owner))
+            .options(joinedload(Post.owner))
             .order_by(desc(Post.created_at))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def create_post(
         self,

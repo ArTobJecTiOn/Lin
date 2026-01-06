@@ -1,0 +1,173 @@
+@startuml Linap2_DataModel
+title Linap2 - Entity-Relationship Diagram (Диаграмма моделей данных)
+
+!define PK *PK
+!define FK +FK
+!define UK ~UK~
+
+class User {
+    PK id: UUID
+    username: String [UNIQUE]
+    email: String [UNIQUE]
+    hashed_password: String
+    display_name: String
+    avatar_url: String
+    is_active: Boolean = True
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class AuthAccount {
+    PK id: UUID
+    FK user_id: UUID
+    provider: String
+    provider_user_id: String
+    created_at: DateTime
+}
+
+class Session {
+    PK id: UUID
+    FK user_id: UUID
+    token: String
+    expires_at: DateTime
+    created_at: DateTime
+}
+
+class Video {
+    PK id: UUID
+    FK owner_id: UUID
+    title: String
+    description: String
+    video_url: String [NOT NULL]
+    thumbnail_url: String
+    FK agent_id: UUID [NULLABLE]
+    side: String (Attack/Defense)
+    views: Integer = 0
+    likes: Integer = 0
+    dislikes: Integer = 0
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Comment {
+    PK id: UUID
+    FK video_id: UUID
+    FK author_id: UUID
+    content: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class Like {
+    PK id: UUID
+    FK video_id: UUID
+    FK user_id: UUID
+    created_at: DateTime
+    UK unique(video_id, user_id)
+}
+
+class Dislike {
+    PK id: UUID
+    FK video_id: UUID
+    FK user_id: UUID
+    created_at: DateTime
+    UK unique(video_id, user_id)
+}
+
+class Tag {
+    PK id: UUID
+    name: String [UNIQUE]
+    created_at: DateTime
+}
+
+class VideoTag {
+    PK id: UUID
+    FK video_id: UUID
+    FK tag_id: UUID
+    UK unique(video_id, tag_id)
+}
+
+class Post {
+    PK id: UUID
+    FK user_id: UUID
+    title: String
+    content: String
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+class PostTag {
+    PK id: UUID
+    FK post_id: UUID
+    FK tag_id: UUID
+}
+
+class Agent {
+    PK id: UUID
+    name: String [UNIQUE]
+    description: String [NULLABLE]
+    created_at: DateTime
+}
+
+class Ability {
+    PK id: UUID
+    FK agent_id: UUID
+    name: String
+    description: String
+    created_at: DateTime
+}
+
+class EmailVerification {
+    PK id: UUID
+    FK user_id: UUID
+    token: String
+    expires_at: DateTime
+    created_at: DateTime
+}
+
+class PasswordReset {
+    PK id: UUID
+    FK user_id: UUID
+    token: String
+    expires_at: DateTime
+    created_at: DateTime
+}
+
+class Map {
+    PK id: UUID
+    name: String [UNIQUE]
+    description: String [NULLABLE]
+    created_at: DateTime
+}
+
+' Relations
+User "1" -- "*" AuthAccount : has
+User "1" -- "*" Session : has
+User "1" -- "*" Video : owns
+User "1" -- "*" Comment : writes
+User "1" -- "*" Like : creates
+User "1" -- "*" Dislike : creates
+User "1" -- "*" Post : creates
+User "1" -- "1" EmailVerification : has
+
+Video "1" -- "*" Comment : receives
+Video "1" -- "*" Like : receives
+Video "1" -- "*" Dislike : receives
+Video "*" -- "1" Agent : uses
+Video "*" -- "1" Map : uses
+Video "1" -- "*" VideoTag : has
+
+Tag "1" -- "*" VideoTag : tagged_in
+Tag "1" -- "*" PostTag : tagged_in
+
+Post "1" -- "*" PostTag : has
+
+Agent "1" -- "*" Ability : has
+
+' Styling
+class User #ddaadd
+class Video #aadddd
+class Like #ddddaa
+class Dislike #ffcccc
+
+@enduml

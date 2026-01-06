@@ -1,0 +1,129 @@
+@startuml Linap2_Architecture
+!define TECHN_FOLDER_BKG_COLOR #FFFFCC
+!include <tupadr3/Common>
+
+title Linap2 - System Architecture Diagram (Архитектура системы)
+
+LAYOUT_WITH_LEGEND()
+
+actor User
+
+package "Client Layer\n(Фронтенд)" {
+    [HTML5/CSS3] as HTML
+    [JavaScript\n(Vanilla JS)] as JS
+    [Fetch API\n+ XMLHttpRequest] as HTTP
+    
+    HTML --* JS : содержит
+    JS ..> HTTP : использует
+}
+
+package "Network Layer\n(Сеть)" {
+    [HTTP/HTTPS\nProtocol] as HTTPS
+}
+
+package "Server Layer\n(Бэкенд)" {
+    package "FastAPI Application" {
+        [Router Layer\n(routes/)] as Router
+        [Service Layer\n(services/)] as Service
+        [Model Layer\n(models/)] as Models
+        [Schema Layer\n(schemas/)] as Schemas
+    }
+    
+    [JWT\nAuthentication] as JWT
+    [File Storage\n(uploads/)] as FileStore
+    
+    Router ..> Service : вызывает
+    Service ..> Models : использует
+    Service ..> JWT : проверяет
+    Router --> Schemas : валидирует
+}
+
+package "Data Layer\n(Данные)" {
+    database "PostgreSQL\nDatabase" as DB
+    [Alembic\nMigrations] as Migration
+}
+
+package "External Services" {
+    [File System\n(Server Disk)] as Filesystem
+}
+
+' Client to Server
+User --> HTML : открывает браузер
+HTML --> JS : загружает скрипт
+JS --> HTTP : отправляет запросы
+HTTP --> HTTPS : использует протокол
+HTTPS --> Router : маршрутизирует
+
+' Backend flow
+Router --> JWT : проверяет токен
+Router --> Service : обрабатывает логику
+Service --> Models : получает/сохраняет
+Models --> DB : выполняет SQL
+Models <--> Migration : версионирует схему
+
+' File handling
+Service --> FileStore : сохраняет/получает файлы
+FileStore --> Filesystem : операции на диске
+
+' Response back
+DB --> Models : возвращает результаты
+Models --> Service : преобразует в объекты
+Service --> Schemas : сериализует в JSON
+Schemas --> Router : отправляет ответ
+Router --> HTTP : формирует HTTP response
+HTTP --> JS : возвращает данные
+JS --> HTML : обновляет DOM
+
+' Notes
+note right of JS
+    📱 Функции:
+    - Управление модальными окнами
+    - Отправка формы с видео
+    - Прогресс загрузки файла
+    - Рендеринг видео карточек
+    - Открытие видео плеера
+end note
+
+note right of Router
+    🔀 Эндпоинты:
+    - /auth (регистрация, вход)
+    - /users (профиль)
+    - /videos (загрузка, список, лайк)
+    - /comments (комментарии)
+    - /tags (теги)
+end note
+
+note right of Service
+    ⚙️ Бизнес-логика:
+    - Валидация данных
+    - CRUD операции
+    - Управление правами
+    - Статистика видео
+end note
+
+note right of Models
+    📊 Модели:
+    - User, AuthAccount
+    - Video, VideoTag
+    - Comment, Like
+    - Tag, Agent, Ability
+end note
+
+note right of DB
+    🗄️ Таблицы:
+    - users
+    - videos
+    - comments
+    - likes, dislikes
+    - tags, post_tags
+    - sessions, email_verification
+end note
+
+note right of FileStore
+    📁 Структура:
+    - uploads/
+      - avatars/
+      - videos/
+end note
+
+@enduml

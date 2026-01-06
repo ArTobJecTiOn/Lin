@@ -32,7 +32,7 @@ class TagService:
         result = await self.session.execute(
             select(Tag).offset(skip).limit(limit)
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def create_tag(self, name: str, slug: Optional[str] = None) -> Tag:
         """Создать новый тег"""

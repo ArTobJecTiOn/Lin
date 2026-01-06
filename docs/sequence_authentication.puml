@@ -1,0 +1,176 @@
+@startuml Linap2_Authentication_Sequence
+title Linap2 - Sequence Diagram: Процесс аутентификации и авторизации
+
+participant "Пользователь\n(Frontend)" as User
+participant "Frontend\n(JavaScript)" as Frontend
+participant "Backend\n(FastAPI)" as Backend
+participant "БД\n(PostgreSQL)" as Database
+
+== Регистрация (Register) ==
+
+User -> Frontend: Заполняет форму регистрации\n(username, email, password, displayName)
+Frontend -> Frontend: Валидирует локально\nпароль >= 8 символов
+
+User -> Frontend: Нажимает кнопку 'Зарегистрироваться'
+activate Frontend
+
+Frontend -> Backend: POST /auth/register\n{username, email, password, displayName}
+activate Backend
+
+Backend -> Backend: Валидирует данные\n- уникальность username\n- формат email
+
+Backend -> Database: SELECT * FROM users\nWHERE username = X OR email = Y
+activate Database
+Database -> Backend: Если уже существует\nвозвращает ошибку
+deactivate Database
+
+alt Данные дублируются
+    Backend -> Frontend: 409 Conflict\n{detail: 'Username already exists'}
+    Frontend -> User: Показывает ошибку
+else Данные уникальны
+    Backend -> Backend: Хеширует пароль\nиспользует bcrypt
+    Backend -> Database: INSERT INTO users\n(username, email, hashed_password,\ndisplay_name, created_at)
+    activate Database
+    Database -> Backend: Возвращает новый User
+    deactivate Database
+    
+    Backend -> Database: INSERT INTO email_verification\n(user_id, token, expires_at)
+    activate Database
+    Database -> Backend: Возвращает токен\nвизуализацииемайла
+    deactivate Database
+    
+    Backend -> Frontend: 201 Created\n{user_id, username, message}
+    deactivate Backend
+    
+    Frontend -> User: Показывает успех\n'На ваш email отправлена ссылка'
+end
+
+deactivate Frontend
+
+== Вход в систему (Login) ==
+
+User -> Frontend: Заполняет форму входа\n(username, password)
+Frontend -> Frontend: Валидирует локально
+
+User -> Frontend: Нажимает кнопку 'Войти'
+activate Frontend
+
+Frontend -> Backend: POST /auth/login\n{username, password}
+activate Backend
+
+Backend -> Database: SELECT * FROM users\nWHERE username = X
+activate Database
+Database -> Backend: Возвращает User или NULL
+deactivate Database
+
+alt Пользователь не найден
+    Backend -> Frontend: 401 Unauthorized\n{detail: 'Invalid credentials'}
+    Frontend -> User: Показывает ошибку
+else Пользователь найден
+    Backend -> Backend: Проверяет пароль\nиспользует bcrypt.verify()
+    
+    alt Пароль неправильный
+        Backend -> Frontend: 401 Unauthorized\n{detail: 'Invalid credentials'}
+        Frontend -> User: Показывает ошибку
+    else Пароль правильный
+        Backend -> Backend: Создает JWT токен\nalgorithm='HS256'\npayload: {user_id, username, exp}\nkey: SECRET_KEY
+        
+        Backend -> Database: INSERT/UPDATE INTO sessions\n(user_id, token, expires_at)
+        activate Database
+        deactivate Database
+        
+        Backend -> Frontend: 200 OK\n{access_token, token_type: 'bearer',\nuser: {id, username, display_name}}
+        deactivate Backend
+        
+        Frontend -> Frontend: Сохраняет токен\nlocalStorage.setItem('authToken', token)
+        Frontend -> Frontend: Обновляет UI\nпоказывает профиль пользователя
+        Frontend -> User: Показывает профиль
+        
+        Frontend -> Backend: GET /users/me\n+ Authorization: Bearer TOKEN
+        activate Backend
+        Backend -> Backend: Декодирует JWT токен\nпроверяет подпись и время жизни
+        Backend -> Database: SELECT * FROM users\nWHERE id = user_id (из токена)
+        activate Database
+        Database -> Backend: Возвращает User данные
+        deactivate Database
+        Backend -> Frontend: 200 OK\n{user: {id, username, email, display_name, avatar_url}}
+        deactivate Backend
+        
+        Frontend -> Frontend: loadCurrentUser() - загружает\nданные пользователя в глобальное состояние
+        Frontend -> User: Отображает профиль\nи данные пользователя
+    end
+end
+
+deactivate Frontend
+
+== Защищенный запрос ==
+
+User -> Frontend: Совершает действие,\nтребующее аутентификации\n(напр. загрузить видео)
+activate Frontend
+
+Frontend -> Frontend: Получает токен\nиз localStorage
+
+Frontend -> Backend: POST /videos/upload\n+ Authorization: Bearer TOKEN\n+ остальные данные
+activate Backend
+
+Backend -> Backend: Функция get_current_user():\n1. Извлекает токен\nиз заголовка Authorization\n2. Проверяет наличие 'Bearer '\n3. Декодирует JWT\n4. Проверяет подпись (SECRET_KEY)\n5. Проверяет expires_at > now\n6. Возвращает TokenData(user_id, username)
+activate Backend
+
+alt Токен невалидный/истек
+    Backend -> Backend: Выбрасывает HTTPException\n401 Unauthorized
+    Backend -> Frontend: 401 Unauthorized\n{detail: 'Invalid token'}
+    Frontend -> Frontend: Удаляет токен\nlocalStorage.removeItem('authToken')
+    Frontend -> User: Показывает форму входа
+else Токен валидный
+    Backend -> Backend: Использует user_id\nдля дальнейшей обработки
+    Backend -> Database: Выполняет основной запрос\nс проверкой прав доступа
+    deactivate Backend
+    deactivate Backend
+    Backend -> Frontend: 200 OK\n{результаты запроса}
+    Frontend -> User: Показывает результаты
+end
+
+deactivate Frontend
+
+== Выход из системы (Logout) ==
+
+User -> Frontend: Нажимает кнопку 'Выход'
+activate Frontend
+
+Frontend -> Frontend: Удаляет токен\nlocalStorage.removeItem('authToken')
+Frontend -> Frontend: Очищает currentUser
+Frontend -> Frontend: Очищает UI профиля
+Frontend -> Backend: POST /auth/logout\n+ Authorization: Bearer TOKEN
+activate Backend
+Backend -> Database: DELETE FROM sessions\nWHERE user_id = X
+deactivate Database
+Backend -> Frontend: 200 OK
+deactivate Backend
+Frontend -> User: Перенаправляет на главную\nПоказывает форму входа
+deactivate Frontend
+
+note right of Backend
+    🔐 Безопасность:
+    - Пароли хешируются bcrypt
+    - JWT подписи проверяются
+    - Токены в localStorage
+    - HTTPS (рекомендуется)
+    - HttpOnly cookies (опция)
+end note
+
+note right of Database
+    📊 Хранение:
+    - users: основные данные
+    - sessions: активные сессии
+    - email_verification: неподтвержденные емейлы
+    - password_reset: токены восстановления
+end note
+
+note right of Frontend
+    💾 Локальное хранилище:
+    - authToken в localStorage
+    - currentUser в памяти
+    - Проверка валидности при загрузке
+end note
+
+@enduml

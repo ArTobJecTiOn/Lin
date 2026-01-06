@@ -1,0 +1,128 @@
+@startuml Linap2_VideoPlayback_Sequence
+title Linap2 - Sequence Diagram: Просмотр и взаимодействие с видео
+
+participant "Пользователь\n(Frontend)" as User
+participant "Frontend\n(JavaScript)" as Frontend
+participant "Backend\n(FastAPI)" as Backend
+participant "БД\n(PostgreSQL)" as Database
+
+== Загрузка видео с сервера ==
+
+User -> Frontend: Открывает страницу\nили профиль
+activate Frontend
+
+Frontend -> Backend: GET /videos\nили GET /users/{id}/videos\n+ Authorization token
+activate Backend
+
+Backend -> Database: SELECT * FROM videos\nORDER BY created_at DESC
+activate Database
+Database -> Backend: Возвращает массив\nVideo объектов
+deactivate Database
+
+Backend -> Frontend: 200 OK\n[{video1}, {video2}, ...]
+deactivate Backend
+
+Frontend -> Frontend: Вызывает renderHomeGrid()\nили renderProfileGrid()
+Frontend -> Frontend: Создает карточки видео\nчерез renderVideoCard()
+Frontend -> User: Отображает видео карточки\nс плеем button (▶️)
+deactivate Frontend
+
+== Клик по видео карточке ==
+
+User -> Frontend: Кликает на видео карточку
+activate Frontend
+
+Frontend -> Frontend: Вызывает openVideoPlayer(video)
+Frontend -> Frontend: Устанавливает src видео\nв HTML <video> элемент
+Frontend -> Frontend: Заполняет title, description
+Frontend -> Frontend: Показывает modal\nvideoPlayerModal
+Frontend -> Frontend: Автоматически запускает\nvideoPlayer.play()
+
+User -> User: Видит видео в плеере\nс встроенными контролами
+Frontend -> User: Видео проигрывается
+
+== Лайк видео ==
+
+User -> Frontend: Кликает кнопку\n'👍 Нравится'
+activate Frontend
+
+Frontend -> Frontend: Получает currentVideoId
+Frontend -> Backend: POST /videos/{video_id}/like\n+ Authorization: Bearer TOKEN
+activate Backend
+
+Backend -> Backend: Проверяет JWT токен\nполучает user_id
+Backend -> Database: SELECT * FROM videos\nWHERE id = video_id
+activate Database
+Database -> Backend: Возвращает Video объект
+deactivate Database
+
+alt Пользователь уже лайкал
+    Backend -> Database: DELETE FROM likes\nWHERE video_id = X AND user_id = Y
+    deactivate Database
+    Backend -> Frontend: 200 OK\n{message: 'Like removed', likes: N}
+else Первый раз лайкит
+    Backend -> Database: INSERT INTO likes\n(video_id, user_id)
+    Backend -> Database: UPDATE videos\nSET likes = likes + 1\nWHERE id = video_id
+    deactivate Database
+    Backend -> Frontend: 200 OK\n{message: 'Like added', likes: N}
+end
+
+deactivate Backend
+
+Frontend -> Frontend: Обновляет счетчик лайков\nв modal
+Frontend -> User: Показывает обновленный\nсчетчик
+deactivate Frontend
+
+== Дислайк видео ==
+
+User -> Frontend: Кликает кнопку\n'👎 Не нравится'
+activate Frontend
+
+Frontend -> Backend: POST /videos/{video_id}/dislike\n+ Authorization: Bearer TOKEN
+activate Backend
+
+Backend -> Database: INSERT/DELETE dislikes\nUPDATE counter
+activate Database
+deactivate Database
+
+Backend -> Frontend: 200 OK\n{message: 'Dislike', dislikes: N}
+deactivate Backend
+
+Frontend -> Frontend: Обновляет счетчик\nдислайков
+Frontend -> User: Показывает обновленный\nсчетчик
+deactivate Frontend
+
+== Закрытие плеера ==
+
+User -> Frontend: Кликает кнопку '✕'\nили нажимает ESC
+activate Frontend
+
+Frontend -> Frontend: Вызывает closeVideoPlayer()
+Frontend -> Frontend: Паузирует видео\nvideoPlayer.pause()
+Frontend -> Frontend: Скрывает modal\n(display: none)
+Frontend -> User: Видео остановлено\nи закрыто
+deactivate Frontend
+
+note right of Frontend
+  Встроенный HTML5 плеер
+  с нативными контролами:
+  - Play/Pause
+  - Volume
+  - Fullscreen
+  - Progress bar
+end note
+
+note right of Backend
+  Асинхронные операции
+  Валидация токена на каждый запрос
+  Транзакции при обновлении счетчиков
+end note
+
+note right of Database
+  Таблицы:
+  - videos (id, owner_id, title, likes, dislikes)
+  - likes (video_id, user_id, created_at)
+  - dislikes (video_id, user_id, created_at)
+end note
+
+@enduml

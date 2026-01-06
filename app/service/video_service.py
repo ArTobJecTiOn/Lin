@@ -2,7 +2,7 @@ from typing import Optional, List
 import uuid
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 
 from app.models.video import Video
@@ -20,45 +20,45 @@ class VideoService:
         result = await self.session.execute(
             select(Video)
             .where(Video.id == video_id)
-            .options(selectinload(Video.owner))
+            .options(joinedload(Video.owner))
         )
-        return result.scalars().first()
+        return result.unique().scalars().first()
 
     async def get_user_videos(self, user_id: uuid.UUID, skip: int = 0, limit: int = 20) -> List[Video]:
         """Получить видео пользователя"""
         result = await self.session.execute(
             select(Video)
             .where(Video.owner_id == user_id)
-            .options(selectinload(Video.owner))
+            .options(joinedload(Video.owner))
             .order_by(desc(Video.created_at))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def get_videos_by_agent(self, agent: str, skip: int = 0, limit: int = 20) -> List[Video]:
         """Получить видео по агенту"""
         result = await self.session.execute(
             select(Video)
             .where(Video.agent == agent)
-            .options(selectinload(Video.owner))
+            .options(joinedload(Video.owner))
             .order_by(desc(Video.views))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def get_videos_by_map(self, map_id: uuid.UUID, skip: int = 0, limit: int = 20) -> List[Video]:
         """Получить видео по карте"""
         result = await self.session.execute(
             select(Video)
             .where(Video.map_id == map_id)
-            .options(selectinload(Video.owner))
+            .options(joinedload(Video.owner))
             .order_by(desc(Video.views))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def create_video(
         self,

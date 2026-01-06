@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>API Test</title>
+    <style>
+        body { background: #1a1d23; color: #fff; font-family: Arial; padding: 20px; }
+        .test-group { background: #22252b; padding: 15px; margin: 10px 0; border-radius: 4px; }
+        button { background: #ff2e4c; color: #fff; border: none; padding: 10px 16px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #ff1a3c; }
+        input { background: #2a2d34; color: #fff; border: 1px solid #404450; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; margin: 5px 0; }
+        pre { background: #2a2d34; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .success { color: #00ff00; }
+        .error { color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <h1>🧪 API Test Panel</h1>
+
+    <!-- Auth Section -->
+    <div class="test-group">
+        <h3>1️⃣ Аутентификация</h3>
+        <input type="email" id="loginEmail" placeholder="Email" value="test@example.com">
+        <input type="password" id="loginPassword" placeholder="Password" value="password123">
+        <button onclick="testLogin()">Логин</button>
+        <button onclick="showToken()">Показать токен</button>
+        <button onclick="testGetMe()">GET /auth/me</button>
+        <pre id="authOutput"></pre>
+    </div>
+
+    <!-- Video Section -->
+    <div class="test-group">
+        <h3>2️⃣ Видео</h3>
+        <button onclick="testGetVideos()">GET /videos/</button>
+        <input type="text" id="videoId" placeholder="Video ID">
+        <button onclick="testGetVideoById()">GET /videos/{id}</button>
+        <button onclick="testLikeVideo()">POST /videos/{id}/like</button>
+        <button onclick="testDislikeVideo()">POST /videos/{id}/dislike</button>
+        <pre id="videoOutput"></pre>
+    </div>
+
+    <!-- Comments Section -->
+    <div class="test-group">
+        <h3>3️⃣ Комментарии</h3>
+        <input type="text" id="commentVideoId" placeholder="Video ID">
+        <button onclick="testGetVideoComments()">GET /comments/video/{id}</button>
+        <input type="text" id="commentContent" placeholder="Comment content">
+        <button onclick="testCreateComment()">POST /comments/</button>
+        <pre id="commentOutput"></pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        let token = localStorage.getItem('authToken');
+
+        async function apiRequest(endpoint, options = {}) {
+            const url = `${API_BASE}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+            
+            if (token && !options.skipAuth) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            console.log(`[API] ${options.method || 'GET'} ${url}`);
+            console.log('Headers:', headers);
+
+            try {
+                const response = await fetch(url, { ...options, headers });
+                const data = await response.json();
+                console.log(`[API] Response (${response.status}):`, data);
+                return { status: response.status, data };
+            } catch (error) {
+                console.error('[API] Error:', error);
+                throw error;
+            }
+        }
+
+        function log(elementId, text, isError = false) {
+            const el = document.getElementById(elementId);
+            const time = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            el.innerHTML += `[${time}] <span class="${className}">${text}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            log('authOutput', `Логин с ${email}...`);
+            try {
+                const result = await apiRequest('/auth/login', {
+                    method: 'POST',
+                    skipAuth: true,
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (result.status === 200) {
+                    token = result.data.access_token;
+                    localStorage.setItem('authToken', token);
+                    log('authOutput', `✓ Успешный логин! Токен: ${token.substring(0, 20)}...`);
+                } else {
+                    log('authOutput', `✗ Ошибка логина: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('authOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        function showToken() {
+            const token = localStorage.getItem('authToken');
+            log('authOutput', `Текущий токен: ${token || 'Нет токена'}`);
+        }
+
+        async function testGetMe() {
+            log('authOutput', 'Запрос текущего пользователя...');
+            try {
+                const result = await apiRequest('/auth/me');
+                if (result.status === 200) {
+                    log('authOutput', `✓ Пользователь: ${result.data.username}`);
+                    log('authOutput', JSON.stringify(result.data, null, 2));
+                } else {
+                    log('authOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('authOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testGetVideos() {
+            log('videoOutput', 'Загрузка видео...');
+            try {
+                const result = await apiRequest('/videos/', { skipAuth: true });
+                if (result.status === 200) {
+                    log('videoOutput', `✓ Загружено видео: ${result.data.length}`);
+                    result.data.forEach(v => {
+                        log('videoOutput', `  - ${v.title} (ID: ${v.id})`);
+                        document.getElementById('videoId').value = v.id;
+                    });
+                } else {
+                    log('videoOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('videoOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testGetVideoById() {
+            const id = document.getElementById('videoId').value;
+            if (!id) {
+                log('videoOutput', 'Укажите Video ID', true);
+                return;
+            }
+            
+            log('videoOutput', `Загрузка видео ${id}...`);
+            try {
+                const result = await apiRequest(`/videos/${id}`, { skipAuth: true });
+                if (result.status === 200) {
+                    log('videoOutput', `✓ Видео найдено: ${result.data.title}`);
+                    log('videoOutput', JSON.stringify(result.data, null, 2));
+                } else {
+                    log('videoOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('videoOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testLikeVideo() {
+            const id = document.getElementById('videoId').value;
+            if (!id) {
+                log('videoOutput', 'Укажите Video ID', true);
+                return;
+            }
+            if (!token) {
+                log('videoOutput', 'Требуется авторизация!', true);
+                return;
+            }
+            
+            log('videoOutput', `Лайк видео ${id}...`);
+            try {
+                const result = await apiRequest(`/videos/${id}/like`, { method: 'POST' });
+                if (result.status === 200) {
+                    log('videoOutput', `✓ Лайк добавлен! Likes: ${result.data.likes}, Dislikes: ${result.data.dislikes}`);
+                } else {
+                    log('videoOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('videoOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testDislikeVideo() {
+            const id = document.getElementById('videoId').value;
+            if (!id) {
+                log('videoOutput', 'Укажите Video ID', true);
+                return;
+            }
+            if (!token) {
+                log('videoOutput', 'Требуется авторизация!', true);
+                return;
+            }
+            
+            log('videoOutput', `Дизлайк видео ${id}...`);
+            try {
+                const result = await apiRequest(`/videos/${id}/dislike`, { method: 'POST' });
+                if (result.status === 200) {
+                    log('videoOutput', `✓ Дизлайк добавлен! Likes: ${result.data.likes}, Dislikes: ${result.data.dislikes}`);
+                } else {
+                    log('videoOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('videoOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testGetVideoComments() {
+            const id = document.getElementById('commentVideoId').value;
+            if (!id) {
+                log('commentOutput', 'Укажите Video ID', true);
+                return;
+            }
+            
+            log('commentOutput', `Загрузка комментариев видео ${id}...`);
+            try {
+                const result = await apiRequest(`/comments/video/${id}`, { skipAuth: true });
+                if (result.status === 200) {
+                    const comments = Array.isArray(result.data) ? result.data : result.data.comments || [];
+                    log('commentOutput', `✓ Загружено комментариев: ${comments.length}`);
+                    comments.forEach(c => {
+                        log('commentOutput', `  - ${c.author?.username}: ${c.content}`);
+                    });
+                } else {
+                    log('commentOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('commentOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        async function testCreateComment() {
+            const videoId = document.getElementById('commentVideoId').value;
+            const content = document.getElementById('commentContent').value;
+            
+            if (!videoId || !content) {
+                log('commentOutput', 'Укажите Video ID и содержание комментария', true);
+                return;
+            }
+            if (!token) {
+                log('commentOutput', 'Требуется авторизация!', true);
+                return;
+            }
+            
+            log('commentOutput', `Создание комментария...`);
+            try {
+                const result = await apiRequest('/comments/', {
+                    method: 'POST',
+                    body: JSON.stringify({ video_id: videoId, content })
+                });
+                if (result.status === 201) {
+                    log('commentOutput', `✓ Комментарий создан: ${result.data.id}`);
+                    log('commentOutput', JSON.stringify(result.data, null, 2));
+                } else {
+                    log('commentOutput', `✗ Ошибка: ${result.data.detail}`, true);
+                }
+            } catch (error) {
+                log('commentOutput', `✗ Ошибка: ${error.message}`, true);
+            }
+        }
+
+        // Auto load token
+        window.onload = () => {
+            if (token) showToken();
+        };
+    </script>
+</body>
+</html>

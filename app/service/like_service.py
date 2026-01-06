@@ -2,7 +2,7 @@ from typing import Optional, List
 import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 
 from app.models.like import Like
@@ -19,31 +19,31 @@ class LikeService:
         result = await self.session.execute(
             select(Like)
             .where(Like.id == like_id)
-            .options(selectinload(Like.user))
+            .options(joinedload(Like.user))
         )
-        return result.scalars().first()
+        return result.unique().scalars().first()
 
     async def get_user_likes(self, user_id: uuid.UUID, skip: int = 0, limit: int = 100) -> List[Like]:
         """Получить лайки пользователя"""
         result = await self.session.execute(
             select(Like)
             .where(Like.user_id == user_id)
-            .options(selectinload(Like.user))
+            .options(joinedload(Like.user))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def get_post_likes(self, post_id: uuid.UUID, skip: int = 0, limit: int = 100) -> List[Like]:
         """Получить лайки поста"""
         result = await self.session.execute(
             select(Like)
             .where(Like.post_id == post_id)
-            .options(selectinload(Like.user))
+            .options(joinedload(Like.user))
             .offset(skip)
             .limit(limit)
         )
-        return result.scalars().all()
+        return list(result.unique().scalars().all())
 
     async def like_post(self, user_id: uuid.UUID, post_id: uuid.UUID) -> Like:
         """Поставить лайк на пост"""

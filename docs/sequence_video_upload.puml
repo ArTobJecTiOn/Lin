@@ -1,0 +1,73 @@
+@startuml Linap2_VideoUpload_Sequence
+title Linap2 - Sequence Diagram: Загрузка видео
+
+participant "Пользователь\n(Frontend)" as User
+participant "Frontend\n(JavaScript)" as Frontend
+participant "Backend\n(FastAPI)" as Backend
+participant "Файловая система" as FileSystem
+participant "База данных\n(PostgreSQL)" as Database
+
+User -> Frontend: Нажимает кнопку\n'Загрузить видео'
+activate Frontend
+
+Frontend -> Frontend: Открывает модальное окно\nuploadVideoModal
+Frontend -> User: Показывает форму загрузки
+
+User -> Frontend: Заполняет форму\n(title, description, agent, side, file)
+User -> Frontend: Нажимает кнопку\n'Загрузить'
+
+Frontend -> Frontend: Валидирует форму
+Frontend -> Frontend: Создает FormData\nс параметрами и файлом
+
+Frontend -> Backend: POST /videos/upload\n+ файл + параметры\n+ Authorization: Bearer TOKEN
+activate Backend
+
+Backend -> Backend: Декодирует JWT токен\nфункция get_current_user()
+Backend -> Backend: Извлекает user_id\nиз TokenData
+Backend -> Backend: Валидирует параметры\nFormData
+
+alt Файл невалидный
+    Backend -> Backend: Проверяет расширение\n(mp4, mov, octet-stream)
+    Backend -> Frontend: 422 Unprocessable Entity\nОшибка валидации
+    Frontend -> User: Показывает ошибку
+else Файл валидный
+    Backend -> FileSystem: Создает директорию\nuploads/videos/
+    Backend -> FileSystem: Генерирует уникальное имя\nфайла (timestamp + uuid)
+    Backend -> FileSystem: Сохраняет файл\n(асинхронно через aiofiles)
+    activate FileSystem
+    FileSystem -> FileSystem: Записывает видео\nна диск
+    deactivate FileSystem
+    
+    Backend -> Database: INSERT INTO videos\n(owner_id, title, description,\nagent, side, video_url,\nviews, likes, dislikes)
+    activate Database
+    Database -> Database: Создает запись\nи возвращает Video объект
+    deactivate Database
+    
+    Backend -> Frontend: 200 OK\n{video_id, video_url, ...}
+    deactivate Backend
+    
+    Frontend -> Frontend: Скрывает модальное окно
+    Frontend -> Frontend: Обновляет список видео\nв профиле renderProfileGrid()
+    Frontend -> User: Показывает успешное\nсообщение ✓
+end
+
+deactivate Frontend
+
+note right of Frontend
+  XHR запрос с отслеживанием
+  прогресса загрузки файла
+  progress event listener
+end note
+
+note right of Backend
+  Асинхронная запись файла
+  через aiofiles для неблокирующего I/O
+end note
+
+note right of Database
+  UUID первичный ключ
+  owner_id - внешний ключ на User
+  Временная метка автоматическая
+end note
+
+@enduml

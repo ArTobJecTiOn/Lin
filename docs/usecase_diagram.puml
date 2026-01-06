@@ -1,0 +1,118 @@
+@startuml Linap2_UseCases
+!define AWSPUML https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/dist
+!include AWSPUML/AWSCommon.puml
+
+title Linap2 - Use Case Diagram (Диаграмма прецедентов)
+
+left to right direction
+
+' Actors
+actor "Пользователь\n(User)" as User
+actor "Система\n(System)" as System
+
+rectangle "Linap2 - Платформа видео CS2" {
+    ' Authentication Use Cases
+    usecase "UC1: Регистрация" as UC1
+    usecase "UC2: Вход в систему" as UC2
+    usecase "UC3: Выход из системы" as UC3
+    usecase "UC4: Восстановление пароля" as UC4
+    
+    ' Profile Management
+    usecase "UC5: Просмотр профиля" as UC5
+    usecase "UC6: Изменить ник" as UC6
+    usecase "UC7: Загрузить аватар" as UC7
+    usecase "UC8: Изменить пароль" as UC8
+    
+    ' Video Management
+    usecase "UC9: Загрузить видео" as UC9
+    usecase "UC10: Просмотреть видео" as UC10
+    usecase "UC11: Удалить видео" as UC11
+    usecase "UC12: Отредактировать видео" as UC12
+    
+    ' Video Interactions
+    usecase "UC13: Лайкнуть видео" as UC13
+    usecase "UC14: Дислайкнуть видео" as UC14
+    usecase "UC15: Добавить комментарий" as UC15
+    usecase "UC16: Удалить комментарий" as UC16
+    
+    ' Filtering & Search
+    usecase "UC17: Фильтровать видео" as UC17
+    usecase "UC18: Поиск видео" as UC18
+    
+    ' Notifications (future)
+    usecase "UC19: Получить уведомление" as UC19
+    
+    ' System Use Cases
+    usecase "UC20: Сохранить видео файл" as UC20
+    usecase "UC21: Обновить статистику" as UC21
+    usecase "UC22: Верифицировать токен" as UC22
+}
+
+' User connections
+User --> UC1 : Регистрируется
+User --> UC2 : Входит
+User --> UC3 : Выходит
+User --> UC4 : Восстанавливает пароль
+
+User --> UC5 : Просматривает
+User --> UC6 : Изменяет
+User --> UC7 : Загружает
+User --> UC8 : Изменяет
+
+User --> UC9 : Загружает
+User --> UC10 : Просматривает
+User --> UC11 : Удаляет
+User --> UC12 : Редактирует
+
+User --> UC13 : Лайкает
+User --> UC14 : Дислайкает
+User --> UC15 : Пишет
+User --> UC16 : Удаляет
+
+User --> UC17 : Фильтрует
+User --> UC18 : Ищет
+
+' System connections
+UC9 --> UC20 : <<include>>
+UC9 --> UC21 : <<include>>
+UC9 --> UC22 : <<include>>
+
+UC10 --> UC21 : <<include>>
+UC10 --> UC22 : <<include>>
+
+UC13 --> UC21 : <<include>>
+UC14 --> UC21 : <<include>>
+
+UC15 --> UC21 : <<include>>
+UC16 --> UC21 : <<include>>
+
+UC2 --> UC22 : <<include>>
+UC3 --> UC22 : <<include>>
+
+System --> UC19 : Отправляет
+User <-- UC19 : Получает
+
+' Extensions
+UC13 ..> UC14 : <<extend>>
+UC14 ..> UC13 : <<extend>>
+
+note right of UC1
+  Валидация данных
+  Хеширование пароля
+  Создание записи в БД
+end note
+
+note right of UC9
+  Валидация файла
+  Создание метаданных
+  Сохранение в хранилище
+  Запись в БД
+end note
+
+note right of UC22
+  Проверка JWT токена
+  Валидация подписи
+  Проверка срока действия
+end note
+
+@enduml

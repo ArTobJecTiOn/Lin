@@ -4,7 +4,7 @@ poetry run uvicorn app.main:app --reload
 
 
 //GIT//
-git add
+git add  .
 git commit -m "йоу"
 git push
 
