@@ -470,6 +470,11 @@ function openVideoPlayer(video) {
   // Wire dislike button
   document.getElementById('videoDislikeBtn').onclick = () => toggleDislike(video);
   
+  // Record view (if user is logged in)
+  if (currentUser) {
+    recordVideoView(video);
+  }
+  
   // Load comments
   loadComments(video.id);
   
@@ -490,6 +495,20 @@ function closeVideoPlayer() {
   videoPlayer.pause();
   document.getElementById('videoPlayerModal').style.display = 'none';
   document.getElementById('commentInput').value = '';
+}
+
+async function recordVideoView(video) {
+  console.log('[VIEW] Recording view for video:', video.id);
+  try {
+    const response = await apiRequest(`/videos/${video.id}/view`, { method: 'POST' });
+    console.log('[VIEW] View recorded:', response);
+    // Обновляем счетчик просмотров
+    video.views = response.views || 0;
+    document.getElementById('videoPlayerViews').textContent = `👁️ ${video.views} просмотров`;
+  } catch (error) {
+    console.error('Failed to record view:', error);
+    // Игнорируем ошибку - не критично
+  }
 }
 
 async function toggleLike(video) {

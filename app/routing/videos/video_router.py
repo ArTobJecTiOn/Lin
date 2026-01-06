@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile, Header, Form
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 import aiofiles
 import os
@@ -7,13 +8,14 @@ from pathlib import Path
 from typing import Optional
 
 from app.core.database.database import get_db
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, TokenData
 from app.service.video_service import VideoService
+from app.models.video_view import VideoView
 
 router = APIRouter(prefix="/videos")
 
 
-def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
+def get_current_user(authorization: Optional[str] = Header(None)) -> TokenData:
     """Получить текущего пользователя из токена"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -233,14 +235,14 @@ async def update_video(
 async def like_video(
     video_id: UUID,
     session: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user)
 ):
     """Добавить лайк к видео"""
-    print(f"[LIKE] Received like request for video {video_id} from user {current_user}")
+    print(f"[LIKE] Получен запрос лайка для видео {video_id} от пользователя {current_user}")
     video_service = VideoService(session)
     try:
         video = await video_service.like_video(video_id)
-        print(f"[LIKE] Video after like: likes={video.likes}, dislikes={video.dislikes}")
+        print(f"[LIKE] Видео после лайка: likes={video.likes}, dislikes={video.dislikes}")
         return {
             "message": "Video liked successfully",
             "likes": video.likes,
@@ -250,7 +252,7 @@ async def like_video(
         print(f"[LIKE] HTTPException: {e}")
         raise e
     except Exception as e:
-        print(f"[LIKE] Exception: {e}")
+        print(f"[LIKE] Ошибка: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -261,14 +263,14 @@ async def like_video(
 async def dislike_video(
     video_id: UUID,
     session: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user)
 ):
     """Добавить дизлайк к видео"""
-    print(f"[DISLIKE] Received dislike request for video {video_id} from user {current_user}")
+    print(f"[DISLIKE] Получен запрос дизлайка для видео {video_id} от пользователя {current_user}")
     video_service = VideoService(session)
     try:
         video = await video_service.dislike_video(video_id)
-        print(f"[DISLIKE] Video after dislike: likes={video.likes}, dislikes={video.dislikes}")
+        print(f"[DISLIKE] Видео после дизлайка: likes={video.likes}, dislikes={video.dislikes}")
         return {
             "message": "Video disliked successfully",
             "likes": video.likes,
@@ -278,7 +280,51 @@ async def dislike_video(
         print(f"[DISLIKE] HTTPException: {e}")
         raise e
     except Exception as e:
-        print(f"[DISLIKE] Exception: {e}")
+        print(f"[DISLIKE] Ошибка: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+
+@router.post("/{video_id}/view")
+async def record_view(
+    video_id: UUID,
+    session: AsyncSession = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Записать просмотр видео"""
+    print(f"[VIEW] Записываем просмотр видео {video_id} пользователем {current_user.user_id}")
+    try:
+        # Пытаемся добавить просмотр
+        view = VideoView(user_id=current_user.user_id, video_id=video_id)
+        session.add(view)
+        await session.commit()
+        # ТУТ срабатывает уникальность из бд ---> IntegrityError если уже был просмотр этим пользователем
+        # Обновляем счетчик просмотров видео
+        video_service = VideoService(session)
+        video = await video_service.get_video_by_id(video_id)
+        if video:
+            # Считаем уникальные просмотры
+            from sqlalchemy import func, select
+            result = await session.execute(
+                select(func.count(VideoView.id.distinct())).where(VideoView.video_id == video_id)
+            )
+            video.views = result.scalar() or 0
+            await session.commit()
+            print(f"[VIEW] Просмотр записан. Всего просмотров: {video.views}")
+        
+        return {"message": "View recorded", "views": video.views if video else 0}
+    except IntegrityError:
+        # Этот пользователь уже смотрел это видео
+        print(f"[VIEW] Пользователь {current_user.user_id} уже просмотрел видео {video_id}")
+        await session.rollback()
+        video_service = VideoService(session)
+        video = await video_service.get_video_by_id(video_id)
+        return {"message": "Already viewed", "views": video.views if video else 0}
+    except Exception as e:
+        print(f"[VIEW] Ошибка: {e}")
+        await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -293,14 +339,14 @@ async def upload_video(
     agent: str | None = Form(None),
     side: str | None = Form(None),
     session: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: TokenData = Depends(get_current_user)
 ):
     """Загрузить видео файл"""
     video_service = VideoService(session)
     try:
-        print(f"[VIDEO UPLOAD] Received upload request: title={title}, agent={agent}, side={side}, user={current_user}")
+        print(f"[VIDEO UPLOAD] Получен запрос загрузки: title={title}, agent={agent}, side={side}, user={current_user}")
         
-        # Get owner_id from current user (TokenData object)
+        
         owner_id = UUID(current_user.user_id)
         
         # Проверяем формат файла
@@ -336,7 +382,7 @@ async def upload_video(
             side=side
         )
         
-        print(f"[VIDEO UPLOAD] Video created: {video}")
+        print(f"[VIDEO UPLOAD] Видео создано: {video}")
         
         return {
             "message": "Video uploaded successfully",
@@ -346,7 +392,7 @@ async def upload_video(
     except HTTPException as e:
         raise e
     except Exception as e:
-        print(f"[VIDEO UPLOAD] Error: {e}")
+        print(f"[VIDEO UPLOAD] Ошибка: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(

@@ -8,6 +8,7 @@ from app.core.database.database import get_db
 from app.service.comment_service import CommentService
 from app.routing.videos.video_router import get_current_user
 from app.models.comment import Comment
+from app.core.security import TokenData
 
 router = APIRouter(prefix="/comments")
 
@@ -105,7 +106,7 @@ async def get_video_comments(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_comment(
     comment_data: CommentCreate,
-    current_user: dict = Depends(get_current_user),
+    current_user: TokenData = Depends(get_current_user),
     session: AsyncSession = Depends(get_db)
 ):
     """Создать новый комментарий"""
@@ -113,7 +114,7 @@ async def create_comment(
     comment_service = CommentService(session)
     try:
         comment = await comment_service.create_comment(
-            author_id=current_user.user_id,
+            author_id=UUID(current_user.user_id),
             content=comment_data.content,
             video_id=comment_data.video_id,
             post_id=comment_data.post_id,

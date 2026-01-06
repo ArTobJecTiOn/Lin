@@ -15,4 +15,4 @@ from .like import Like
 from .password_reset import PasswordReset
 from .email_verification import EmailVerification
 from .session import Session
-
+from .video_view import VideoView
